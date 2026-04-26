@@ -794,67 +794,102 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
         window.batalLogin = () => { document.getElementById('login-view').classList.add('hidden'); document.getElementById('main-view').classList.remove('hidden'); };
         
         
-        // FUNGSI LOGIN ASLI MENGGUNAKAN FIRESTORE (Dengan SweetAlert)
+       // FUNGSI LOGIN ASLI MENGGUNAKAN FIRESTORE (Dengan SweetAlert)
+        // FUNGSI LOGIN 100% FINAL (RAMAH, SANTUN & DATA AKURAT)
         window.doLogin = async () => { 
-            const userVal = document.getElementById('login-user').value;
-            const passVal = document.getElementById('login-pass').value;
+            const userVal = document.getElementById('login-user').value.trim();
+            const passVal = document.getElementById('login-pass').value.trim();
             
+            // Validasi input kosong dengan bahasa halus
             if(!userVal || !passVal) {
-                return Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Username dan Password wajib diisi!', confirmButtonColor: '#4f46e5' });
+                return Swal.fire({ 
+                    icon: 'info', 
+                    title: 'Data Belum Lengkap', 
+                    text: 'Username dan Password silakan diisi dulu ya Bapak/Ibu.', 
+                    confirmButtonColor: '#4f46e5',
+                    customClass: { popup: 'rounded-[2rem]' }
+                });
             }
             
             const btnLogin = document.querySelector('#login-view button[onclick="doLogin()"]');
-            btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memvalidasi...';
+            btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Mengecek data...';
             
             try {
-                // LANGKAH 1: CARI USERNAME-NYA DULU
+                // 1. CARI USERNAME (LOGIKA DUA LAPIS AGAR JELAS SALAHNYA DIMANA)
                 const qUser = query(collection(db, "akun_portal"), where("username", "==", userVal));
                 const snapUser = await getDocs(qUser);
                 
                 if(snapUser.empty) {
-                    // JIKA USERNAME TIDAK DITEMUKAN
+                    // NOTIFIKASI RAMAH: USERNAME TIDAK DIKENALI
                     Swal.fire({
-                        icon: 'info',
-                        title: '<span class="text-indigo-600 font-black text-2xl">Username Tidak Ada!</span>',
-                        html: `<p class="text-slate-500 font-medium">Maaf, username <b class="text-indigo-600">${userVal}</b> belum terdaftar di database portal.<br><br>Silakan hubungi <b>Operator/Admin</b> untuk pendaftaran akun.</p>`,
-                        confirmButtonText: 'Saya Mengerti',
+                        icon: 'question',
+                        title: '<span class="text-indigo-600 font-black text-2xl md:text-3xl">Ups, Siapa Ini?</span>',
+                        html: `
+                            <div class="flex flex-col items-center">
+                                <p class="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
+                                    Kami belum mengenali username <b class="text-indigo-600">${userVal}</b> di sistem. 
+                                    Mungkin ada salah ketik NISN atau NIP?
+                                </p>
+                                <div class="mt-6 p-4 bg-indigo-50 rounded-2xl border border-indigo-100 w-full text-center">
+                                    <p class="text-[11px] text-indigo-400 font-bold uppercase tracking-widest mb-1">Langkah Selanjutnya</p>
+                                    <p class="text-xs text-slate-600">
+                                        Pastikan akun sudah diaktivasi oleh <b>Admin IT Sekolah</b> sebelum mencoba kembali.
+                                    </p>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Cek Pengetikan Kembali',
                         confirmButtonColor: '#4f46e5',
-                        customClass: { popup: 'rounded-[2.5rem] border-t-8 border-indigo-500 shadow-2xl p-8' }
+                        showClass: { popup: 'animate__animated animate__tada' },
+                        customClass: { popup: 'rounded-[2.5rem] border-t-8 border-indigo-500 shadow-2xl p-6 md:p-8' }
                     });
                     btnLogin.innerText = 'Masuk Sistem';
                     return;
                 }
 
-                // LANGKAH 2: JIKA USERNAME ADA, BARU CEK PASSWORDNYA
                 const akunDoc = snapUser.docs[0];
                 const akunData = akunDoc.data();
 
+                // 2. CEK PASSWORD
                 if(akunData.password !== passVal) {
-                    // JIKA PASSWORD SALAH (NOTIF PREMIUM)
+                    // NOTIFIKASI RAMAH: PASSWORD BELUM PAS
                     Swal.fire({
-                        icon: 'error',
-                        title: '<span class="text-red-600 font-black text-2xl">Password Salah!</span>',
-                        html: `<div class="flex flex-col items-center"><p class="text-slate-500 font-medium text-sm">Kunci akses yang Anda masukkan tidak cocok dengan database kami.</p><div class="mt-5 p-4 bg-red-50 rounded-2xl border border-red-100 w-full text-center"><p class="text-[11px] text-red-600 font-bold uppercase tracking-widest mb-1">Butuh Bantuan?</p><p class="text-xs text-slate-600">Hubungi <b>Admin IT Sekolah</b> untuk reset password.</p></div></div>`,
-                        confirmButtonText: '<i class="fas fa-key mr-2"></i> Coba Lagi',
+                        icon: 'info',
+                        title: '<span class="text-rose-600 font-black text-2xl md:text-3xl">Waduh, Kuncinya Belum Pas!</span>',
+                        html: `
+                            <div class="flex flex-col items-center">
+                                <p class="text-slate-500 font-medium text-sm md:text-base leading-relaxed">
+                                    Sepertinya ada sedikit kekeliruan saat mengetik <b>Password</b>. 
+                                    Coba cek pelan-pelan ya, mungkin ada huruf besar/kecil yang terlewat.
+                                </p>
+                                <div class="mt-6 p-4 bg-rose-50 rounded-2xl border border-rose-100 w-full text-center">
+                                    <p class="text-[11px] text-rose-400 font-bold uppercase tracking-widest mb-1">Bantuan</p>
+                                    <p class="text-xs text-slate-600">
+                                        Jika lupa kuncinya, silakan hubungi <b>Operator / Admin Sekolah</b> untuk dibantu reset.
+                                    </p>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: '<i class="fas fa-keyboard mr-2"></i> Siap, Saya Coba Lagi',
                         buttonsStyling: false,
                         showClass: { popup: 'animate__animated animate__headShake' },
                         customClass: {
-                            popup: 'rounded-[2.5rem] border-t-8 border-red-500 shadow-2xl p-8',
-                            confirmButton: 'w-full bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-2xl py-4 font-black mt-2'
+                            popup: 'rounded-[2.5rem] border-t-8 border-rose-500 shadow-2xl p-6 md:p-8',
+                            confirmButton: 'w-full bg-gradient-to-r from-rose-500 to-orange-500 text-white rounded-2xl px-6 py-4 font-black shadow-lg outline-none mt-2'
                         }
                     });
                     btnLogin.innerText = 'Masuk Sistem';
                     return;
                 }
 
-                // JIKA SEMUA BENAR, LANJUTKAN PROSES LOGIN
-                const namaPintu = window.pendingLoginNama.toLowerCase();
+                // 3. CEK KATEGORI PINTU (BIAR TIDAK SALAH MASUK)
+                const namaPintu = (window.pendingLoginNama || "").toLowerCase();
                 const tipeAkun = akunData.tipe.toLowerCase();
-                
-                if(!namaPintu.includes(tipeAkun)) {
+                if(namaPintu && !namaPintu.includes(tipeAkun)) {
                     Swal.fire({
-                        icon: 'warning', title: 'Salah Kamar!',
-                        html: `Anda mencoba masuk ke <b>${window.pendingLoginNama}</b> dengan akun <b>${akunData.tipe.toUpperCase()}</b>.`,
+                        icon: 'warning',
+                        title: 'Wah, Salah Kamar!',
+                        html: `Bapak/Ibu mencoba masuk ke pintu <b>${window.pendingLoginNama}</b> menggunakan akun <b>${akunData.tipe.toUpperCase()}</b>.`,
                         confirmButtonColor: '#f59e0b',
                         customClass: { popup: 'rounded-[2rem]' }
                     });
@@ -862,18 +897,59 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
                     return;
                 }
 
-                // SETUP DASHBOARD (PROSES BERHASIL)
+                // 4. AMBIL DATA PROFIL (FIX: AGAR NAMA & JABATAN MUNCUL)
+                let namaLengkap = "Tanpa Nama";
+                let infoTambahan = "ID: " + akunData.username;
+                const tipeKoleksi = `pengguna_${tipeAkun}`;
+                
+                // Cari profil berdasarkan field NISN/NIP yang sesuai dengan username
+                const fieldId = (tipeAkun === 'siswa') ? 'nisn' : 'nip';
+                const qProfile = query(collection(db, tipeKoleksi), where(fieldId, "==", userVal));
+                const snapProfile = await getDocs(qProfile);
+
+                if(!snapProfile.empty) {
+                    const profileData = snapProfile.docs[0].data();
+                    namaLengkap = profileData.nama || "User Portal";
+                    
+                    if(tipeAkun === 'siswa') {
+                        infoTambahan = `Kelas: ${profileData.kelas || '-'} | NISN: ${profileData.nisn || userVal}`;
+                    } else {
+                        // Ambil jabatan dari berbagai kemungkinan nama field
+                        let jabatan = profileData.jabatan || profileData.tugas_1 || profileData.tugas || "Tenaga Kependidikan";
+                        infoTambahan = `${jabatan} | NIP: ${profileData.nip || userVal}`;
+                    }
+                } else {
+                    // Cadangan: Ambil berdasarkan ID Dokumen jika query field gagal
+                    try {
+                        const directSnap = await getDoc(doc(db, tipeKoleksi, akunDoc.id));
+                        if(directSnap.exists()) {
+                            const d = directSnap.data();
+                            namaLengkap = d.nama || "User Portal";
+                            infoTambahan = (tipeAkun === 'siswa') ? `Kelas: ${d.kelas} | NISN: ${userVal}` : `${d.jabatan || d.tugas_1 || 'Staf'} | NIP: ${userVal}`;
+                        }
+                    } catch(e) {}
+                }
+
+                // 5. EKSEKUSI LOGIN KE DASHBOARD
                 window.currentUser = akunData; 
                 document.getElementById('login-view').classList.add('hidden'); 
                 document.getElementById('main-view').classList.remove('hidden'); 
                 document.getElementById('main-services-container').classList.add('hidden');
                 document.getElementById('dashboard-header').classList.remove('hidden');
-                document.getElementById('dash-role').innerText = akunData.tipe.toUpperCase();
                 
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Login Berhasil!', showConfirmButton: false, timer: 2000 });
-                window.loadSubServices(window.pendingLoginId, window.pendingLoginNama);
+                document.getElementById('dash-role').innerText = akunData.tipe.toUpperCase();
+                document.getElementById('dash-name').innerText = namaLengkap;
+                document.getElementById('dash-info').innerText = infoTambahan;
+                
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success', title: `Selamat datang, ${namaLengkap}!`,
+                    showConfirmButton: false, timer: 3000, timerProgressBar: true
+                });
+
+                if(window.pendingLoginId) window.loadSubServices(window.pendingLoginId, window.pendingLoginNama);
 
             } catch(e) {
+                console.error(e);
                 Swal.fire({ icon: 'error', title: 'Error Server', text: e.message });
             }
             btnLogin.innerText = 'Masuk Sistem'; 
