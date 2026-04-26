@@ -20,6 +20,65 @@ input::-ms-clear {
     display: none;
 }
 
+/* ========================================================= */
+        /* TAMBAHKAN KODE CSS KARTU UPLOAD CANVA DI SINI             */
+        /* ========================================================= */
+        
+        /* GAYA KARTU UPLOAD ALA CANVA */
+        .kartu-upload-canva {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Bayangan lembut */
+            transition: all 0.3s ease; /* Animasi mulus */
+            cursor: pointer;
+            text-align: center;
+            border: 2px dashed #e0e0e0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Efek saat mouse melayang (hover) */
+        .kartu-upload-canva:hover {
+            transform: translateY(-5px); /* Kartu naik sedikit */
+            box-shadow: 0 12px 24px rgba(138, 43, 226, 0.2); /* Bayangan ungu ala Canva */
+            border-color: #8a2be2; /* Garis tepi berubah ungu */
+        }
+
+        /* Area pratinjau gambar */
+        .area-preview-gambar {
+            width: 100%;
+            height: 120px; /* Sesuaikan tinggi sesuai kebutuhan */
+            border-radius: 10px;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .area-preview-gambar img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Tombol palsu di dalam kartu */
+        .btn-canva-style {
+            background: linear-gradient(135deg, #8a2be2, #4169e1);
+            color: white;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: bold;
+            border: none;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        /* ========================================================= */
+        /* AKHIR KODE CSS KARTU UPLOAD CANVA                         */
+        /* ========================================================= */
+
     </style>
     
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -741,74 +800,81 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
             const passVal = document.getElementById('login-pass').value;
             
             if(!userVal || !passVal) {
-                return Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Username dan Password wajib diisi!', confirmButtonColor: '#4f46e5' });
+                return Swal.fire({ icon: 'warning', title: 'Data Belum Lengkap', text: 'Username dan Password wajib diisi!', confirmButtonColor: '#4f46e5' });
             }
             
             const btnLogin = document.querySelector('#login-view button[onclick="doLogin()"]');
-            btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memeriksa...';
+            btnLogin.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Memvalidasi...';
             
             try {
-                const q = query(collection(db, "akun_portal"), where("username", "==", userVal), where("password", "==", passVal));
-                const querySnapshot = await getDocs(q);
+                // LANGKAH 1: CARI USERNAME-NYA DULU
+                const qUser = query(collection(db, "akun_portal"), where("username", "==", userVal));
+                const snapUser = await getDocs(qUser);
                 
-                if(!querySnapshot.empty) {
-                    const akunDoc = querySnapshot.docs[0];
-                    const akunData = akunDoc.data();
-                    
-                    const namaPintu = window.pendingLoginNama.toLowerCase();
-                    const tipeAkun = akunData.tipe.toLowerCase();
-                    
-                    if(!namaPintu.includes(tipeAkun)) {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Salah Kamar!',
-                            html: `Anda mencoba masuk ke pintu <b>${window.pendingLoginNama}</b> menggunakan akun <b>${akunData.tipe.toUpperCase()}</b>.<br><br>Silakan kembali dan pilih menu yang sesuai.`,
-                            confirmButtonColor: '#ef4444'
-                        });
-                        btnLogin.innerText = 'Masuk Sistem';
-                        return;
-                    }
-
-                    const userId = akunDoc.id; 
-                    let namaLengkap = "Tanpa Nama";
-                    let infoTambahan = "Username: " + akunData.username;
-                    
-                    try {
-                        const userProfileSnap = await getDoc(doc(db, `pengguna_${akunData.tipe}`, userId));
-                        if(userProfileSnap.exists()) {
-                            const profileData = userProfileSnap.data();
-                            namaLengkap = profileData.nama || akunData.username;
-                            if(akunData.tipe === 'siswa') {
-                                infoTambahan = `Kelas: ${profileData.kelas || '-'} | NISN: ${profileData.nisn || profileData.nis || akunData.username}`;
-                            } else {
-                                infoTambahan = `Jabatan: ${profileData.jabatan || profileData.tugas_1 || '-'} | NIP: ${profileData.nip || akunData.username}`;
-                            }
-                        }
-                    } catch(err) { console.log("Gagal mengambil profil", err); }
-
-                    window.currentUser = akunData; 
-                    
-                    document.getElementById('login-view').classList.add('hidden'); 
-                    document.getElementById('main-view').classList.remove('hidden'); 
-                    document.getElementById('main-services-container').classList.add('hidden');
-                    document.getElementById('dashboard-header').classList.remove('hidden');
-                    
-                    document.getElementById('dash-role').innerText = akunData.tipe.toUpperCase();
-                    document.getElementById('dash-name').innerText = namaLengkap;
-                    document.getElementById('dash-info').innerText = infoTambahan;
-                    
-                    // Notifikasi Sukses Login Elegan (Pojok Kanan Atas)
+                if(snapUser.empty) {
+                    // JIKA USERNAME TIDAK DITEMUKAN
                     Swal.fire({
-                        toast: true, position: 'top-end', icon: 'success', title: `Selamat datang, ${namaLengkap}!`,
-                        showConfirmButton: false, timer: 3000, timerProgressBar: true
+                        icon: 'info',
+                        title: '<span class="text-indigo-600 font-black text-2xl">Username Tidak Ada!</span>',
+                        html: `<p class="text-slate-500 font-medium">Maaf, username <b class="text-indigo-600">${userVal}</b> belum terdaftar di database portal.<br><br>Silakan hubungi <b>Operator/Admin</b> untuk pendaftaran akun.</p>`,
+                        confirmButtonText: 'Saya Mengerti',
+                        confirmButtonColor: '#4f46e5',
+                        customClass: { popup: 'rounded-[2.5rem] border-t-8 border-indigo-500 shadow-2xl p-8' }
                     });
-
-                    window.loadSubServices(window.pendingLoginId, window.pendingLoginNama);
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Login Gagal!', text: 'Username atau Password salah.', confirmButtonColor: '#ef4444' });
+                    btnLogin.innerText = 'Masuk Sistem';
+                    return;
                 }
+
+                // LANGKAH 2: JIKA USERNAME ADA, BARU CEK PASSWORDNYA
+                const akunDoc = snapUser.docs[0];
+                const akunData = akunDoc.data();
+
+                if(akunData.password !== passVal) {
+                    // JIKA PASSWORD SALAH (NOTIF PREMIUM)
+                    Swal.fire({
+                        icon: 'error',
+                        title: '<span class="text-red-600 font-black text-2xl">Password Salah!</span>',
+                        html: `<div class="flex flex-col items-center"><p class="text-slate-500 font-medium text-sm">Kunci akses yang Anda masukkan tidak cocok dengan database kami.</p><div class="mt-5 p-4 bg-red-50 rounded-2xl border border-red-100 w-full text-center"><p class="text-[11px] text-red-600 font-bold uppercase tracking-widest mb-1">Butuh Bantuan?</p><p class="text-xs text-slate-600">Hubungi <b>Admin IT Sekolah</b> untuk reset password.</p></div></div>`,
+                        confirmButtonText: '<i class="fas fa-key mr-2"></i> Coba Lagi',
+                        buttonsStyling: false,
+                        showClass: { popup: 'animate__animated animate__headShake' },
+                        customClass: {
+                            popup: 'rounded-[2.5rem] border-t-8 border-red-500 shadow-2xl p-8',
+                            confirmButton: 'w-full bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-2xl py-4 font-black mt-2'
+                        }
+                    });
+                    btnLogin.innerText = 'Masuk Sistem';
+                    return;
+                }
+
+                // JIKA SEMUA BENAR, LANJUTKAN PROSES LOGIN
+                const namaPintu = window.pendingLoginNama.toLowerCase();
+                const tipeAkun = akunData.tipe.toLowerCase();
+                
+                if(!namaPintu.includes(tipeAkun)) {
+                    Swal.fire({
+                        icon: 'warning', title: 'Salah Kamar!',
+                        html: `Anda mencoba masuk ke <b>${window.pendingLoginNama}</b> dengan akun <b>${akunData.tipe.toUpperCase()}</b>.`,
+                        confirmButtonColor: '#f59e0b',
+                        customClass: { popup: 'rounded-[2rem]' }
+                    });
+                    btnLogin.innerText = 'Masuk Sistem';
+                    return;
+                }
+
+                // SETUP DASHBOARD (PROSES BERHASIL)
+                window.currentUser = akunData; 
+                document.getElementById('login-view').classList.add('hidden'); 
+                document.getElementById('main-view').classList.remove('hidden'); 
+                document.getElementById('main-services-container').classList.add('hidden');
+                document.getElementById('dashboard-header').classList.remove('hidden');
+                document.getElementById('dash-role').innerText = akunData.tipe.toUpperCase();
+                
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Login Berhasil!', showConfirmButton: false, timer: 2000 });
+                window.loadSubServices(window.pendingLoginId, window.pendingLoginNama);
+
             } catch(e) {
-                Swal.fire({ icon: 'error', title: 'Error Server', text: e.message, confirmButtonColor: '#ef4444' });
+                Swal.fire({ icon: 'error', title: 'Error Server', text: e.message });
             }
             btnLogin.innerText = 'Masuk Sistem'; 
         };
@@ -860,14 +926,20 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
                 const punyaAkses = userAkses[masterApp.id];
 
                 if (!punyaAkses) {
+                    // TAMPILAN NOTIFIKASI PREMIUM (AKSES DITOLAK)
                     Swal.fire({
                         icon: 'error',
-                        title: 'Akses Dibatasi',
-                        html: `Anda tidak terdaftar dalam akses layanan aplikasi <b class="text-indigo-600">${namaApp}</b>.<br><br><span class="text-sm text-slate-500">Silakan hubungi Admin Sekolah jika ini adalah kesalahan.</span>`,
+                        title: '<span class="text-red-500 font-extrabold text-2xl md:text-3xl">Akses Ditolak!</span>',
+                        html: `<p class="text-slate-500 font-medium text-sm mt-2">Maaf, Anda tidak memiliki izin akses untuk membuka layanan <b class="text-red-500 uppercase">${namaApp}</b>.<br><br>Silakan hubungi Admin Sekolah jika ini adalah kesalahan.</p>`,
+                        background: '#ffffff',
+                        backdrop: `rgba(15, 23, 42, 0.6)`, // Efek layar belakang gelap elegan
+                        confirmButtonText: '<i class="fas fa-times mr-2"></i> Tutup',
                         confirmButtonColor: '#ef4444',
+                        buttonsStyling: false,
                         customClass: {
-                            popup: 'rounded-[2rem]',
-                            confirmButton: 'rounded-xl px-5 py-2 font-bold'
+                            popup: 'rounded-[2rem] border border-red-100 shadow-2xl py-6',
+                            confirmButton: 'bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white rounded-xl px-8 py-3.5 font-extrabold shadow-lg hover:shadow-red-500/40 transition-all duration-300 w-full mt-4 outline-none',
+                            icon: 'border-red-500 text-red-500 scale-110 mb-4'
                         }
                     });
                     return; // Mencegah layar biru loading muncul jika tidak ada akses
@@ -919,45 +991,133 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
 
                 modal.remove(); // Tutup layar loading di Portal
             }, 1800);
-        }; // <---- INI DIA PENYELAMATNYAs
+        };
 
-        // FUNGSI MEMUAT SUB LAYANAN
+        // FUNGSI MEMUAT SUB LAYANAN & RENDER KARTU (UPDATE UKURAN SEDANG LEBAR & 3 BARIS DESKRIPSI)
         window.loadSubServices = async (id, nama) => {
             document.getElementById('divider').classList.remove('hidden');
             document.getElementById('sub-services-header').classList.remove('hidden');
             document.getElementById('selected-category-name').innerText = nama;
             
+            // 1. AMBIL PENGATURAN UKURAN KARTU DARI DATABASE
+            let ukuranKartu = 'normal';
+            try {
+                const docSnap = await getDoc(doc(db, 'layananUtama', id));
+                if (docSnap.exists() && docSnap.data().ukuranKartu) {
+                    ukuranKartu = docSnap.data().ukuranKartu;
+                }
+            } catch (e) { console.log("Gagal membaca ukuran", e); }
+
+            // 2. MENGATUR CSS BERDASARKAN 3 PILIHAN UKURAN ADMIN
+            let sizeClass = "", logoContainerSize = "", logoSize = "", titleSize = "", btnSize = "", descHtml = "";
+            
+            if (ukuranKartu === 'mini') {
+                // UKURAN 3: KECIL (Kompak)
+                sizeClass = "w-[45%] sm:w-[30%] md:w-[180px] p-4 min-h-[200px]";
+                logoContainerSize = "w-14 h-14 md:w-16 md:h-16 mb-3";
+                logoSize = "text-3xl md:text-4xl w-10 h-10 md:w-12 md:h-12";
+                titleSize = "text-[11px] md:text-xs min-h-[36px]"; 
+                descHtml = ``; 
+                btnSize = "py-2 px-2 text-[10px] rounded-lg md:rounded-xl";
+            } 
+            else if (ukuranKartu === 'kecil') {
+                // UKURAN 2: SEDANG (Dilebarkan agar tidak ramping)
+                sizeClass = "w-[45%] sm:w-[32%] md:w-[280px] p-5 md:p-6 min-h-[290px]"; // Lebar dijadikan 280px agar proporsional
+                logoContainerSize = "w-20 h-20 md:w-22 md:h-22 mb-4";
+                logoSize = "text-4xl md:text-5xl w-14 h-14 md:w-16 md:h-16";
+                titleSize = "text-sm md:text-base min-h-[48px]"; 
+                // Deskripsi 3 baris dengan min-h yang aman
+                descHtml = `<p class="text-[10px] md:text-xs text-slate-500 line-clamp-3 min-h-[48px] md:min-h-[54px] w-full px-1 mb-4 leading-relaxed">{TEKS}</p>`;
+                btnSize = "py-2.5 px-4 text-xs md:text-sm rounded-xl font-bold";
+            } 
+            else {
+                // UKURAN 1: STANDAR (IDEAL)
+                sizeClass = "w-full sm:w-[45%] md:w-[320px] p-6 md:p-8 min-h-[320px]";
+                logoContainerSize = "w-24 h-24 md:w-28 md:h-28 mb-5";
+                logoSize = "text-5xl md:text-6xl w-16 h-16 md:w-20 md:h-20";
+                titleSize = "text-base md:text-xl min-h-[60px]"; 
+                // Deskripsi 3 baris dengan min-h yang lega
+                descHtml = `<p class="text-xs md:text-sm text-slate-500 line-clamp-3 min-h-[54px] md:min-h-[60px] w-full px-2 mb-5 leading-relaxed">{TEKS}</p>`;
+                btnSize = "py-3 md:py-3.5 px-4 text-sm md:text-base rounded-2xl font-extrabold";
+            }
+
             const subColRef = collection(db, `layananUtama/${id}/subLayanan`);
             const snapshot = await getDocs(subColRef);
             const container = document.getElementById('sub-services-container');
+            
+            // 3. WADAH TENGAH (Horizontal Center)
+            container.className = "flex flex-wrap justify-center items-stretch gap-4 md:gap-6 max-w-[1200px] mx-auto w-full mb-10";
             container.innerHTML = '';
+
+            // PANEL ADMIN UNTUK MEMILIH UKURAN KARTU
+            if (window.isAdmin) {
+                container.innerHTML += `
+                    <div class="w-full flex justify-center mb-4">
+                        <div class="bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full border-2 border-purple-200 shadow-sm flex items-center gap-2 text-sm font-bold text-slate-600 animate-fade-in">
+                            <i class="fas fa-sliders-h text-purple-500"></i> Ukuran Kartu:
+                            <select onchange="window.ubahUkuranKartu('${id}', this.value, '${nama}')" class="bg-purple-50 border border-purple-300 text-purple-700 px-3 py-1.5 rounded-md outline-none cursor-pointer hover:border-purple-500 transition-all font-extrabold ml-1">
+                                <option value="normal" ${ukuranKartu === 'normal' ? 'selected' : ''}>1. Standar (Ideal)</option>
+                                <option value="kecil" ${ukuranKartu === 'kecil' ? 'selected' : ''}>2. Sedang (Proporsional)</option>
+                                <option value="mini" ${ukuranKartu === 'mini' ? 'selected' : ''}>3. Kecil (Padat)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            }
 
             let subs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.urutan || 99) - (b.urutan || 99));
 
             if(subs.length === 0) {
-                container.innerHTML = `<div class="col-span-full text-center py-4 bg-white/40 border border-white rounded-2xl shadow-sm">
-                    <i class="fas fa-tools text-2xl text-blue-300 mb-2"></i>
-                    <p class="text-slate-500 text-xs md:text-sm font-bold">Menu masih dalam tahap pengembangan</p>
+                container.innerHTML += `
+                <div class="w-full max-w-md text-center py-10 bg-white/40 border border-white rounded-[2rem] shadow-sm mx-auto mt-4">
+                    <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-tools text-2xl text-blue-400"></i>
+                    </div>
+                    <p class="text-slate-500 font-bold">Menu masih dalam tahap pengembangan.</p>
                 </div>`;
             }
 
             subs.forEach(sub => {
-                // PERHATIAN: href diganti menjadi onclick eksekusiSSO
+                let tampilanLogo = `<i class="fas fa-laptop-code text-violet-500 ${logoSize}"></i>`; 
+                if (sub.logo && sub.logo.trim() !== "") {
+                    if (sub.logo.startsWith("http") || sub.logo.startsWith("data:image")) {
+                        tampilanLogo = `<img src="${sub.logo}" class="${logoSize} object-contain drop-shadow-md">`;
+                    } else {
+                        tampilanLogo = `<i class="${sub.logo} text-violet-500 ${logoSize} group-hover:scale-110 transition-transform duration-300"></i>`;
+                    }
+                }
+
+                let amanDeskripsi = (sub.deskripsi || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                let kartuDeskripsi = descHtml.replace('{TEKS}', sub.deskripsi || '');
+
+                // KARTU CANVA
                 container.innerHTML += `
-                    <div class="relative group cursor-pointer" onclick="window.eksekusiSSO('${sub.nama}', '${sub.link}')">
-                        <div class="h-14 md:h-16 p-2 md:p-3 bg-white/90 backdrop-blur-sm border border-white rounded-[1rem] shadow-sm hover:shadow-md transition-all flex items-center gap-2 md:gap-3 hover:-translate-y-1 relative">
-                            <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300 z-10 shrink-0">
-                                <i class="fas fa-chevron-right text-[10px] md:text-xs"></i>
-                            </div>
-                            <div class="z-10 flex-1 overflow-hidden">
-                                <h3 class="font-bold text-slate-800 text-[11px] md:text-sm line-clamp-2 leading-tight">${sub.nama}</h3>
-                            </div>
+                    <div class="relative bg-white rounded-[2.5rem] ${sizeClass} shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_15px_40px_rgb(0,0,0,0.14)] hover:-translate-y-2 transition-all duration-300 border border-slate-100 flex flex-col items-center text-center group cursor-pointer" onclick="window.eksekusiSSO('${sub.nama}', '${sub.link}')">
+                        
+                        <div class="${logoContainerSize} bg-gradient-to-tr from-violet-50 to-purple-100 rounded-full flex items-center justify-center shadow-inner group-hover:shadow-md transition-all duration-300 border border-white p-2 shrink-0">
+                            ${tampilanLogo}
                         </div>
                         
+                        <div class="w-full flex items-center justify-center ${titleSize} mb-1 px-1">
+                            <h3 class="font-extrabold text-slate-800 w-full whitespace-normal break-words leading-snug" title="${sub.nama}">
+                                ${sub.nama}
+                            </h3>
+                        </div>
+                        
+                        <p class="text-[9px] md:text-[10px] text-violet-500 font-extrabold uppercase tracking-widest w-full mb-2">
+                            Akses Portal
+                        </p>
+                        
+                        ${kartuDeskripsi}
+                        
+                        <button class="w-full mt-auto bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white ${btnSize} shadow-md hover:shadow-lg transition-all active:scale-95 pointer-events-none">
+                            Buka Layanan
+                        </button>
+
                         ${window.isAdmin ? `
-                        <div class="absolute -top-1.5 -right-1.5 flex gap-0.5 z-20">
-                            <button onclick="event.stopPropagation(); editSub('${id}', '${sub.id}', '${sub.nama}', '${sub.link}', '${sub.urutan || 99}')" class="bg-blue-500 hover:bg-blue-600 text-white w-5 h-5 rounded-full shadow border border-white flex justify-center items-center"><i class="fas fa-pencil-alt text-[8px]"></i></button>
-                            <button onclick="event.stopPropagation(); hapusSub('${id}', '${sub.id}')" class="bg-red-500 hover:bg-red-600 text-white w-5 h-5 rounded-full shadow border border-white flex justify-center items-center"><i class="fas fa-times text-[8px]"></i></button>
+                        <div class="absolute top-3 right-3 md:top-4 md:right-4 flex gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            <button onclick="event.stopPropagation(); window.editSub('${id}', '${sub.id}', '${sub.nama}', '${sub.link}', '${sub.urutan || 99}', '${sub.logo || ''}', '${amanDeskripsi}')" class="w-8 h-8 rounded-full bg-amber-500 text-white hover:bg-amber-600 flex items-center justify-center transition-colors shadow-md" title="Edit Menu"><i class="fas fa-pencil-alt text-xs"></i></button>
+                            <button onclick="event.stopPropagation(); window.hapusSub('${id}', '${sub.id}')" class="w-8 h-8 rounded-full bg-red-500 text-white hover:bg-red-600 flex items-center justify-center transition-colors shadow-md" title="Hapus Menu"><i class="fas fa-trash text-xs"></i></button>
                         </div>
                         ` : ''}
                     </div>
@@ -966,12 +1126,26 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
 
             if (window.isAdmin) {
                 container.innerHTML += `
-                    <div onclick="tambahSub('${id}')" class="h-14 md:h-16 p-2 md:p-3 bg-white/40 border-2 border-dashed border-slate-300 rounded-[1rem] cursor-pointer hover:bg-white hover:border-blue-400 transition-all flex items-center justify-center gap-1.5 text-slate-500 hover:text-blue-600 font-bold shadow-sm text-xs">
-                        <i class="fas fa-plus"></i> Tambah Menu
+                    <div onclick="window.tambahSub('${id}')" class="relative bg-white/40 rounded-[2.5rem] ${sizeClass} border-2 border-dashed border-slate-300 hover:border-violet-500 hover:bg-white transition-all duration-300 flex flex-col items-center justify-center text-center group cursor-pointer">
+                        <div class="${logoContainerSize} bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform border border-slate-100">
+                            <i class="fas fa-plus text-2xl md:text-3xl text-slate-400 group-hover:text-violet-600 transition-colors"></i>
+                        </div>
+                        <p class="font-bold text-slate-500 group-hover:text-violet-700 transition-colors text-sm md:text-base">Tambah Menu Baru</p>
                     </div>
                 `;
             }
             setTimeout(() => document.getElementById('sub-services-header').scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        };
+
+        // FUNGSI ADMIN: MENGUBAH & MENYIMPAN UKURAN KARTU
+        window.ubahUkuranKartu = async (utamaId, size, nama) => {
+            try {
+                await updateDoc(doc(db, 'layananUtama', utamaId), { ukuranKartu: size });
+                window.loadSubServices(utamaId, nama); 
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Ukuran Disimpan!', showConfirmButton: false, timer: 1500 });
+            } catch(e) {
+                Swal.fire('Gagal', 'Tidak dapat mengubah ukuran: ' + e.message, 'error');
+            }
         };
 
         window.simpanIdentitas = async () => { 
@@ -1082,22 +1256,128 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
             });
         };
 
+        // ========================================================
+        // BLOK MANAJEMEN SUB-LAYANAN (150+ IKON, PREVIEW & DESKRIPSI)
+        // ========================================================
+        
+        // Daftar 150+ Ikon Pendidikan & Ekstrakurikuler Super Lengkap
+        const daftarIkonPendidikan = [
+            // Aktor (Siswa, Guru, Tendik, Tamu, Lulusan)
+            'fas fa-user-graduate', 'fas fa-chalkboard-teacher', 'fas fa-user-tie', 'fas fa-users', 'fas fa-child', 'fas fa-user-friends', 'fas fa-id-badge', 'fas fa-id-card', 'fas fa-address-card', 'fas fa-user-check', 'fas fa-user-cog', 'fas fa-user-shield',
+            // Gedung & Fasilitas
+            'fas fa-school', 'fas fa-university', 'fas fa-building', 'fas fa-hospital', 'fas fa-clinic-medical', 'fas fa-warehouse', 'fas fa-mosque', 'fas fa-church', 'fas fa-store', 'fas fa-restroom',
+            // Keuangan, Tabungan & Administrasi
+            'fas fa-piggy-bank', 'fas fa-wallet', 'fas fa-coins', 'fas fa-money-bill-wave', 'fas fa-hand-holding-usd', 'fas fa-donate', 'fas fa-receipt', 'fas fa-file-invoice-dollar', 'fas fa-cash-register', 'fas fa-credit-card', 'fas fa-chart-line', 'fas fa-chart-pie',
+            // Kesehatan & UKS
+            'fas fa-first-aid', 'fas fa-heartbeat', 'fas fa-stethoscope', 'fas fa-pills', 'fas fa-briefcase-medical', 'fas fa-band-aid', 'fas fa-syringe', 'fas fa-thermometer', 'fas fa-weight', 'fas fa-wheelchair', 'fas fa-bed',
+            // Pramuka, Alam & Outdoor
+            'fas fa-campground', 'fas fa-fire', 'fas fa-fire-alt', 'fas fa-map', 'fas fa-map-marked-alt', 'fas fa-compass', 'fas fa-mountain', 'fas fa-tree', 'fas fa-leaf', 'fas fa-binoculars', 'fas fa-route', 'fas fa-sign',
+            // Olahraga & Fisik
+            'fas fa-futbol', 'fas fa-basketball-ball', 'fas fa-volleyball-ball', 'fas fa-table-tennis', 'fas fa-baseball-ball', 'fas fa-golf-ball', 'fas fa-bowling-ball', 'fas fa-running', 'fas fa-swimmer', 'fas fa-biking', 'fas fa-skating', 'fas fa-snowboarding', 'fas fa-dumbbell',
+            // Prestasi, Nilai & Penghargaan
+            'fas fa-award', 'fas fa-medal', 'fas fa-certificate', 'fas fa-trophy', 'fas fa-star', 'fas fa-crown',
+            // Sains, Lab & Matematika
+            'fas fa-microscope', 'fas fa-flask', 'fas fa-vial', 'fas fa-vials', 'fas fa-atom', 'fas fa-dna', 'fas fa-magnet', 'fas fa-rocket', 'fas fa-calculator', 'fas fa-square-root-variable',
+            // Seni, Musik & Prakarya
+            'fas fa-palette', 'fas fa-paint-brush', 'fas fa-music', 'fas fa-guitar', 'fas fa-drum', 'fas fa-microphone', 'fas fa-headphones', 'fas fa-camera', 'fas fa-video', 'fas fa-theater-masks', 'fas fa-tools', 'fas fa-hammer', 'fas fa-wrench', 'fas fa-cogs',
+            // Teknologi, Komputer & Jaringan
+            'fas fa-laptop-code', 'fas fa-laptop', 'fas fa-desktop', 'fas fa-tablet-alt', 'fas fa-mobile-alt', 'fas fa-keyboard', 'fas fa-mouse', 'fas fa-print', 'fas fa-server', 'fas fa-network-wired', 'fas fa-wifi', 'fas fa-database', 'fas fa-microchip',
+            // Alat Tulis, Buku & Berkas
+            'fas fa-book', 'fas fa-book-open', 'fas fa-book-reader', 'fas fa-pencil-alt', 'fas fa-pen', 'fas fa-pen-fancy', 'fas fa-eraser', 'fas fa-highlighter', 'fas fa-ruler', 'fas fa-clipboard', 'fas fa-clipboard-list', 'fas fa-folder', 'fas fa-folder-open', 'fas fa-file-alt', 'fas fa-archive',
+            // Lain-lain (Kendaraan, Waktu, Komunikasi)
+            'fas fa-bus', 'fas fa-car', 'fas fa-bicycle', 'fas fa-clock', 'fas fa-calendar-alt', 'fas fa-bell', 'fas fa-bullhorn', 'fas fa-globe', 'fas fa-utensils', 'fas fa-mug-hot'
+        ];
+
+        const buatGaleriIkon = (logoAktif) => {
+            return daftarIkonPendidikan.map(ikon => {
+                let isSelected = logoAktif === ikon ? 'border-purple-500 bg-purple-100 text-purple-700' : 'border-transparent bg-slate-100 text-slate-500';
+                return `<div class="icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-purple-100 hover:text-purple-600 transition-all border-2 ${isSelected}" data-icon="${ikon}" title="${ikon.replace('fas fa-', '')}"><i class="${ikon} text-lg pointer-events-none"></i></div>`;
+            }).join('');
+        };
+
         window.tambahSub = async (utamaId) => { 
             const { value: formValues } = await Swal.fire({
                 title: 'Tambah Sub-Menu',
+                width: '38em',
                 html: `
                     <div class="text-left space-y-3 mt-2">
-                        <input id="swal-sub-nama" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" placeholder="Nama Menu (Cth: Kelulusan)">
-                        <input id="swal-sub-link" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" placeholder="Link URL Target (Cth: https://...)">
-                        <input id="swal-sub-urutan" type="number" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" placeholder="No Urut (Cth: 1)" value="99">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Nama Menu & Target URL</label>
+                            <input id="swal-sub-nama" class="w-full p-3 border border-slate-300 rounded-t-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold border-b-0" placeholder="Nama Menu (Cth: E-Raport Siswa)">
+                            <input id="swal-sub-link" class="w-full p-3 border border-slate-300 rounded-b-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" placeholder="Link (Cth: https://...)">
+                        </div>
+                        
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Deskripsi Singkat (Opsional)</label>
+                            <textarea id="swal-sub-deskripsi" rows="2" class="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-xs font-medium" placeholder="Tuliskan penjelasan singkat layanan ini (Maksimal 2 baris agar rapi)"></textarea>
+                        </div>
+
+                        <div class="p-3 border border-purple-200 bg-purple-50/50 rounded-2xl space-y-3">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase text-purple-600"><i class="fas fa-image mr-1"></i>Pilih Logo / Ikon</label>
+                            
+                            <div class="text-xs text-slate-500 mb-1 font-medium">Opsi A: Pilih ${daftarIkonPendidikan.length} Ikon Spesial Pendidikan</div>
+                            <div class="grid grid-cols-7 md:grid-cols-10 gap-2 h-44 overflow-y-auto p-1 hide-scrollbar bg-white rounded-xl border border-purple-100 shadow-inner">
+                                ${buatGaleriIkon('')}
+                            </div>
+                            
+                            <div class="text-center text-[10px] text-slate-400 font-bold my-1">ATAU</div>
+
+                            <div class="text-xs text-slate-500 mb-1 font-medium">Opsi B: Gunakan Link Gambar Sendiri</div>
+                            <div class="flex gap-2 items-center">
+                                <input id="swal-sub-logo" class="w-full p-2.5 border border-purple-300 rounded-xl outline-none focus:border-purple-500 bg-white text-xs font-bold shadow-inner" placeholder="Tempel URL gambar (https://...) di sini">
+                                <div id="preview-opsi-b" class="w-10 h-10 rounded-xl border-2 border-dashed border-purple-300 flex items-center justify-center shrink-0 bg-white overflow-hidden transition-all">
+                                    <i class="fas fa-image text-slate-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mt-2">No Urut Tampil</label>
+                            <input id="swal-sub-urutan" type="number" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" placeholder="Cth: 1" value="99">
+                        </div>
                     </div>
                 `,
                 showCancelButton: true, confirmButtonText: 'Simpan', confirmButtonColor: '#4f46e5', cancelButtonColor: '#94a3b8',
                 customClass: { popup: 'rounded-[2rem]', confirmButton: 'rounded-xl px-5 font-bold', cancelButton: 'rounded-xl px-5 font-bold' },
+                didOpen: () => {
+                    const options = document.querySelectorAll('.icon-option');
+                    const inputLogo = document.getElementById('swal-sub-logo');
+                    const previewBox = document.getElementById('preview-opsi-b');
+
+                    const updatePreview = (val) => {
+                        if (val.startsWith('http') || val.startsWith('data:image')) {
+                            previewBox.innerHTML = `<img src="${val}" class="w-full h-full object-contain" onerror="this.outerHTML='<i class=\\'fas fa-broken-image text-red-300 text-lg\\'></i>'">`;
+                            previewBox.className = "w-10 h-10 rounded-xl border-2 border-purple-500 flex items-center justify-center shrink-0 bg-white overflow-hidden shadow-md transition-all";
+                        } else {
+                            previewBox.innerHTML = `<i class="fas fa-image text-slate-300"></i>`;
+                            previewBox.className = "w-10 h-10 rounded-xl border-2 border-dashed border-purple-300 flex items-center justify-center shrink-0 bg-white overflow-hidden transition-all";
+                        }
+                    };
+
+                    options.forEach(opt => {
+                        opt.addEventListener('click', (e) => {
+                            options.forEach(o => o.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-purple-100 hover:text-purple-600 transition-all border-2 border-transparent bg-slate-100 text-slate-500");
+                            e.currentTarget.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all border-2 border-purple-500 bg-purple-100 text-purple-700";
+                            inputLogo.value = e.currentTarget.getAttribute('data-icon');
+                            updatePreview(''); 
+                        });
+                    });
+
+                    inputLogo.addEventListener('input', (e) => {
+                        updatePreview(e.target.value);
+                        options.forEach(o => o.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-purple-100 hover:text-purple-600 transition-all border-2 border-transparent bg-slate-100 text-slate-500");
+                    });
+                },
                 preConfirm: () => {
                     const nama = document.getElementById('swal-sub-nama').value;
                     if (!nama) { Swal.showValidationMessage('Nama wajib diisi!'); return false; }
-                    return { nama: nama, link: document.getElementById('swal-sub-link').value || "#", urutan: parseInt(document.getElementById('swal-sub-urutan').value) || 99 }
+                    return { 
+                        nama: nama, 
+                        link: document.getElementById('swal-sub-link').value || "#", 
+                        deskripsi: document.getElementById('swal-sub-deskripsi').value || "", 
+                        logo: document.getElementById('swal-sub-logo').value || "fas fa-laptop-code",
+                        urutan: parseInt(document.getElementById('swal-sub-urutan').value) || 99 
+                    }
                 }
             });
 
@@ -1109,22 +1389,91 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
             }
         };
 
-        window.editSub = async (utamaId, subId, oldName, oldLink, oldUrutan) => { 
+        window.editSub = async (utamaId, subId, oldName, oldLink, oldUrutan, oldLogo = "", oldDeskripsi = "") => { 
             const { value: formValues } = await Swal.fire({
                 title: 'Edit Sub-Menu',
+                width: '38em',
                 html: `
                     <div class="text-left space-y-3 mt-2">
-                        <input id="swal-sub-nama" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" value="${oldName}">
-                        <input id="swal-sub-link" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" value="${oldLink}">
-                        <input id="swal-sub-urutan" type="number" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" value="${oldUrutan}">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Nama Menu & Target URL</label>
+                            <input id="swal-sub-nama" class="w-full p-3 border border-slate-300 rounded-t-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold border-b-0" value="${oldName}">
+                            <input id="swal-sub-link" class="w-full p-3 border border-slate-300 rounded-b-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" value="${oldLink}">
+                        </div>
+
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase">Deskripsi Singkat (Opsional)</label>
+                            <textarea id="swal-sub-deskripsi" rows="2" class="w-full p-2.5 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-xs font-medium" placeholder="Tuliskan penjelasan singkat layanan ini">${oldDeskripsi}</textarea>
+                        </div>
+                        
+                        <div class="p-3 border border-purple-200 bg-purple-50/50 rounded-2xl space-y-3">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase text-purple-600"><i class="fas fa-image mr-1"></i>Ganti Logo / Ikon</label>
+                            
+                            <div class="text-xs text-slate-500 mb-1 font-medium">Opsi A: Pilih ${daftarIkonPendidikan.length} Ikon Spesial Pendidikan</div>
+                            <div class="grid grid-cols-7 md:grid-cols-10 gap-2 h-44 overflow-y-auto p-1 hide-scrollbar bg-white rounded-xl border border-purple-100 shadow-inner">
+                                ${buatGaleriIkon(oldLogo)}
+                            </div>
+                            
+                            <div class="text-center text-[10px] text-slate-400 font-bold my-1">ATAU</div>
+
+                            <div class="text-xs text-slate-500 mb-1 font-medium">Opsi B: Gunakan Link Gambar Sendiri</div>
+                            <div class="flex gap-2 items-center">
+                                <input id="swal-sub-logo" class="w-full p-2.5 border border-purple-300 rounded-xl outline-none focus:border-purple-500 bg-white text-xs font-bold shadow-inner" value="${oldLogo}" placeholder="Tempel URL gambar (https://...)">
+                                <div id="preview-opsi-b" class="w-10 h-10 rounded-xl border-2 border-dashed border-purple-300 flex items-center justify-center shrink-0 bg-white overflow-hidden transition-all">
+                                    <i class="fas fa-image text-slate-300"></i>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase mt-2">No Urut Tampil</label>
+                            <input id="swal-sub-urutan" type="number" class="w-full p-3 border border-slate-300 rounded-xl outline-none focus:border-blue-500 bg-slate-50 text-sm font-bold" value="${oldUrutan}">
+                        </div>
                     </div>
                 `,
                 showCancelButton: true, confirmButtonText: 'Update', confirmButtonColor: '#4f46e5', cancelButtonColor: '#94a3b8',
                 customClass: { popup: 'rounded-[2rem]', confirmButton: 'rounded-xl px-5 font-bold', cancelButton: 'rounded-xl px-5 font-bold' },
+                didOpen: () => {
+                    const options = document.querySelectorAll('.icon-option');
+                    const inputLogo = document.getElementById('swal-sub-logo');
+                    const previewBox = document.getElementById('preview-opsi-b');
+
+                    const updatePreview = (val) => {
+                        if (val.startsWith('http') || val.startsWith('data:image')) {
+                            previewBox.innerHTML = `<img src="${val}" class="w-full h-full object-contain" onerror="this.outerHTML='<i class=\\'fas fa-broken-image text-red-300 text-lg\\'></i>'">`;
+                            previewBox.className = "w-10 h-10 rounded-xl border-2 border-purple-500 flex items-center justify-center shrink-0 bg-white overflow-hidden shadow-md transition-all";
+                        } else {
+                            previewBox.innerHTML = `<i class="fas fa-image text-slate-300"></i>`;
+                            previewBox.className = "w-10 h-10 rounded-xl border-2 border-dashed border-purple-300 flex items-center justify-center shrink-0 bg-white overflow-hidden transition-all";
+                        }
+                    };
+
+                    updatePreview(oldLogo);
+
+                    options.forEach(opt => {
+                        opt.addEventListener('click', (e) => {
+                            options.forEach(o => o.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-purple-100 hover:text-purple-600 transition-all border-2 border-transparent bg-slate-100 text-slate-500");
+                            e.currentTarget.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer transition-all border-2 border-purple-500 bg-purple-100 text-purple-700";
+                            inputLogo.value = e.currentTarget.getAttribute('data-icon');
+                            updatePreview('');
+                        });
+                    });
+
+                    inputLogo.addEventListener('input', (e) => {
+                        updatePreview(e.target.value);
+                        options.forEach(o => o.className = "icon-option w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer hover:bg-purple-100 hover:text-purple-600 transition-all border-2 border-transparent bg-slate-100 text-slate-500");
+                    });
+                },
                 preConfirm: () => {
                     const nama = document.getElementById('swal-sub-nama').value;
                     if (!nama) { Swal.showValidationMessage('Nama wajib diisi!'); return false; }
-                    return { nama: nama, link: document.getElementById('swal-sub-link').value || oldLink, urutan: parseInt(document.getElementById('swal-sub-urutan').value) || 99 }
+                    return { 
+                        nama: nama, 
+                        link: document.getElementById('swal-sub-link').value || oldLink, 
+                        deskripsi: document.getElementById('swal-sub-deskripsi').value || oldDeskripsi, 
+                        logo: document.getElementById('swal-sub-logo').value || oldLogo,
+                        urutan: parseInt(document.getElementById('swal-sub-urutan').value) || 99 
+                    }
                 }
             });
 
@@ -1151,6 +1500,7 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
             });
         };
 
+        // FUNGSI TAMBAH FOOTER (TIDAK BERUBAH)
         window.tambahFooter = async () => { 
             const teks = document.getElementById('input-footer-text').value; 
             if(!teks) return Swal.fire({icon: 'warning', title: 'Oops!', text: 'Teks kontak tidak boleh kosong!', customClass:{popup:'rounded-[2rem]'}}); 
