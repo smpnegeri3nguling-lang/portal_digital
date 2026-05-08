@@ -431,9 +431,19 @@ input::-ms-clear {
         const app = initializeApp(firebaseConfig);
         window.db = getFirestore(app);
 
-        const urlParams = new URLSearchParams(window.location.search);
-        window.isAdmin = urlParams.get('admin') === 'true'; 
-        if (window.isAdmin) document.getElementById('admin-panel').classList.remove('hidden');
+        // ==========================================
+        // INISIALISASI KEAMANAN ADMIN (TANPA URL)
+        // ==========================================
+        // Menggunakan sessionStorage agar URL tetap bersih dan aman
+        window.isAdmin = sessionStorage.getItem('isAdmin') === 'true'; 
+        
+        if (window.isAdmin) {
+            document.getElementById('admin-panel').classList.remove('hidden');
+            // Bersihkan URL secara otomatis jika masih ada sisa ?admin=true dari percobaan lama
+            if (window.location.search.includes('admin=true')) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
 
 
 window.selectedAppIdForRole = null;
@@ -471,47 +481,72 @@ window.tambahRoleKeApp = async () => {
 };
 
 // ==========================================
-// SIHIR PINTU RAHASIA ADMIN
-// ==========================================
-window.bukaPintuRahasia = () => {
-    Swal.fire({
-        title: 'Area Terbatas',
-        text: 'Masukkan Mantra Rahasia untuk Mode Admin:',
-        input: 'password',
-        inputAttributes: {
-            autocapitalize: 'off',
-            autocorrect: 'off'
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Buka Gerbang',
-        confirmButtonColor: '#4f46e5',
-        cancelButtonText: 'Batal',
-        customClass: {
-            popup: 'rounded-[2rem]'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // SILAKAN GANTI 'admin123' DENGAN PASSWORD RAHASIA BAPAK
-            if (result.value === 'admin123') {
+        // SIHIR PINTU RAHASIA ADMIN (SISTEM LOGIN AMAN)
+        // ==========================================
+        window.bukaPintuRahasia = () => {
+            // Jika sudah login sebagai admin, ubah tombol menjadi "Keluar Mode Admin"
+            if (window.isAdmin) {
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Mantra Benar!',
-                    text: 'Membuka Panel Pengaturan...',
-                    timer: 1500,
-                    showConfirmButton: false
+                    title: 'Akhiri Sesi Admin?',
+                    text: 'Anda akan keluar dari mode Administrator.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#ef4444',
+                    cancelButtonColor: '#94a3b8',
+                    confirmButtonText: 'Ya, Keluar Mode Admin',
+                    cancelButtonText: 'Batal',
+                    customClass: { popup: 'rounded-[2rem]' }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        sessionStorage.removeItem('isAdmin'); // Hapus sesi admin
+                        window.location.reload(); // Refresh halaman kembali jadi user biasa
+                    }
                 });
-                
-                // Redirect otomatis ke mode admin
-                setTimeout(() => {
-                    const currentUrl = window.location.href.split('?')[0];
-                    window.location.href = currentUrl + '?admin=true';
-                }, 1500);
-            } else {
-                Swal.fire('Salah!', 'Mantra Anda tidak mempan.', 'error');
+                return;
             }
-        }
-    });
-};
+
+            // Jika belum login, tampilkan form Otentikasi Admin
+            Swal.fire({
+                title: 'Otentikasi Administrator',
+                text: 'Masukkan Mantra Rahasia Admin:',
+                input: 'password',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-unlock-alt mr-2"></i> Buka Gerbang',
+                cancelButtonText: 'Batal',
+                confirmButtonColor: '#4f46e5',
+                customClass: { popup: 'rounded-[2.5rem] border-t-8 border-indigo-500 shadow-2xl' }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // SILAKAN GANTI 'admin123' DENGAN PASSWORD RAHASIA BAPAK YANG ASLI
+                    if (result.value === 'admin123') {
+                        // SIMPAN KE SESSION STORAGE (Super Aman, URL Tidak Berubah)
+                        sessionStorage.setItem('isAdmin', 'true');
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Mantra Diterima!',
+                            text: 'Membuka Panel Pengaturan Rahasia...',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            customClass: { popup: 'rounded-[2rem]' }
+                        }).then(() => {
+                            // Refresh halaman (URL tetap bersih, tapi panel admin akan muncul)
+                            window.location.reload();
+                        });
+                    } else {
+                        // Notifikasi jika password salah
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Akses Ditolak!',
+                            text: 'Mantra Anda tidak dikenali oleh sistem.',
+                            confirmButtonColor: '#ef4444',
+                            customClass: { popup: 'rounded-[2rem]' },
+                            showClass: { popup: 'animate__animated animate__headShake' }
+                        });
+                    }
+                }
+            });
+        };
 
 
 window.hapusRoleDariApp = async (index) => {
@@ -969,6 +1004,7 @@ window.eksekusiHapusMassal = async (targetSiswa, namaKelas) => {
             }).then((result) => {
                 if (result.isConfirmed) {
                     window.currentUser = null;
+                    sessionStorage.removeItem('isAdmin'); // Memastikan sesi admin ikut terhapus
                     window.pendingLoginId = null;
                     window.pendingLoginNama = null;
                     
@@ -1765,31 +1801,33 @@ window.hapusMasterAplikasi = async (id) => {
                 { id: 'nama_ortu', label: 'Nama Orang Tua' }
             ],
             pegawai: [
-        { id: 'nama', label: 'Nama' }, 
-        { id: 'nip', label: 'NIP' },
-        { id: 'nik', label: 'NIK' }, 
-        { id: 'tempat_lahir', label: 'Tempat Lahir' }, // Kolom Baru 1
-        { id: 'tanggal_lahir', label: 'Tanggal Lahir' }, // Kolom Baru 2
-        { id: 'pangkat', label: 'Pangkat' }, 
-        { id: 'golongan', label: 'Golongan' }, 
-        { id: 'jabatan', label: 'Jabatan' },
-        { id: 'tugas_1', label: 'Tugas Spesifik 1' }, 
-        { id: 'tugas_2', label: 'Tugas Spesifik 2' }
-    ]
-};
+                { id: 'nama', label: 'Nama' }, 
+                { id: 'nip', label: 'NIP' },
+                { id: 'nik', label: 'NIK' }, 
+                { id: 'tempat_lahir', label: 'Tempat Lahir' },
+                { id: 'tanggal_lahir', label: 'Tanggal Lahir' },
+                { id: 'pangkat', label: 'Pangkat' }, 
+                { id: 'golongan', label: 'Golongan' }, 
+                { id: 'jabatan', label: 'Jabatan' },
+                { id: 'tugas_1', label: 'Tugas Spesifik 1' }, 
+                { id: 'tugas_2', label: 'Tugas Spesifik 2' }
+            ]
+        };
 
         window.activeTab = 'siswa'; window.userData = []; window.editingUserId = null; window.sortCol = 'kelas'; window.sortAsc = true; window.perPage = 10; window.unsubUser = null;
 
-        // 1. FUNGSI PINDAH TAB (Dengan Logika Tampil/Sembunyi Filter Kelas)
+        // ==========================================
+        // 1. FUNGSI PINDAH TAB (Dengan Logika Sembunyi Filter)
+        // ==========================================
         window.switchUserTab = (tab) => {
             window.activeTab = tab; 
             window.editingUserId = null; 
             
-            // Pastikan elemen search ada sebelum diisi kosong
+            // Bersihkan pencarian setiap ganti tab
             const searchInput = document.getElementById('input-search-user');
             if(searchInput) searchInput.value = '';
             
-            // Logika Ubah Warna Tab
+            // Logika Ubah Warna Tombol Tab
             ['siswa', 'guru', 'tendik'].forEach(t => { 
                 let el = document.getElementById('tab-' + t); 
                 if (el) {
@@ -1801,40 +1839,44 @@ window.hapusMasterAplikasi = async (id) => {
                 }
             });
 
-            // KOREKSI UTAMA: Tampilkan/Sembunyikan Tombol & Filter Kelas
+            // LOGIKA TAMPIL/SEMBUNYI ELEMEN KHUSUS SISWA
             const btnMass = document.getElementById('btn-mass-action');
             const btnDeleteMass = document.getElementById('btn-delete-mass');
-            const filterKelas = document.getElementById('filter-kelas'); // Tangkap filter kelas
+            const btnSync = document.getElementById('btn-sync-accounts');
+            const filterKelas = document.getElementById('filter-kelas'); 
 
             if(tab === 'siswa') {
                 if(btnMass) btnMass.classList.remove('hidden');
                 if(btnDeleteMass) btnDeleteMass.classList.remove('hidden');
-                if(filterKelas) filterKelas.classList.remove('hidden'); // Munculkan filter kelas
+                if(btnSync) btnSync.classList.remove('hidden');
+                if(filterKelas) filterKelas.classList.remove('hidden'); // MUNCULKAN Filter Kelas
             } else {
                 if(btnMass) btnMass.classList.add('hidden');
                 if(btnDeleteMass) btnDeleteMass.classList.add('hidden');
-                if(filterKelas) filterKelas.classList.add('hidden'); // Sembunyikan jika Guru/Tendik
+                if(btnSync) btnSync.classList.remove('hidden'); // Generator tetap muncul
+                if(filterKelas) filterKelas.classList.add('hidden'); // SEMBUNYIKAN Filter Kelas
             }
 
             window.sortCol = tab === 'siswa' ? 'kelas' : 'nama'; 
             window.sortAsc = true;
             
             if (typeof window.fetchUserData === "function") window.fetchUserData();
-            else if (typeof fetchUserData === "function") fetchUserData();
         };
 
+        // ==========================================
         // 2. FUNGSI AMBIL DATA & BUAT DAFTAR KELAS OTOMATIS
+        // ==========================================
         window.fetchUserData = () => {
             if(window.unsubUser) window.unsubUser();
             let colName = `pengguna_${window.activeTab}`;
             window.unsubUser = onSnapshot(collection(db, colName), (snapshot) => {
                 window.userData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 
-                // --- KODE BARU: GENERATE DAFTAR KELAS OTOMATIS ---
+                // --- GENERATE DAFTAR KELAS OTOMATIS (KHUSUS SISWA) ---
                 if (window.activeTab === 'siswa') {
                     const selKelas = document.getElementById('filter-kelas');
                     if (selKelas) {
-                        const valLama = selKelas.value; // Ingat pilihan sebelumnya
+                        const valLama = selKelas.value; // Ingat pilihan sebelumnya agar tidak ter-reset
                         const kelasSet = new Set();
                         window.userData.forEach(u => { if(u.kelas) kelasSet.add(u.kelas); });
                         const listKelas = Array.from(kelasSet).sort();
@@ -1846,30 +1888,49 @@ window.hapusMasterAplikasi = async (id) => {
                     }
                 }
                 
-                window.renderUserTable();
+                if (typeof window.renderUserTable === "function") window.renderUserTable();
             });
         };
-        
-        const fetchUserData = window.fetchUserData; // Fallback untuk tombol lama
 
-        // 3. FUNGSI KETIKA KOTAK KELAS DIPILIH (Otomatis Urut Abjad)
+        // ==========================================
+        // 3. FUNGSI PENCARIAN & SORTING
+        // ==========================================
         window.filterByKelas = () => {
-            window.sortCol = 'nama'; // Begitu kelas dipilih, urutkan berdasar nama
-            window.sortAsc = true;   // Dari A ke Z
+            window.sortCol = 'nama'; // Begitu kelas dipilih, urutkan nama abjad
+            window.sortAsc = true;  
             window.renderUserTable();
         };
 
-        // 4. FUNGSI RENDER TABEL (Dengan Filter Cerdas)
+        window.sortUser = (colId) => { 
+            if(window.sortCol === colId) { window.sortAsc = !window.sortAsc; } 
+            else { window.sortCol = colId; window.sortAsc = true; } 
+            window.renderUserTable(); 
+        };
+        
+        window.cariPengguna = () => { window.renderUserTable(); };
+        window.gantiPerPage = () => { window.perPage = document.getElementById('select-per-page').value; window.renderUserTable(); };
+
+        // ==========================================
+        // 4. FUNGSI RENDER TABEL UTAMA
+        // ==========================================
         window.renderUserTable = () => {
             let cols = window.activeTab === 'siswa' ? colDef.siswa : colDef.pegawai;
             let thead = document.getElementById('user-thead'); let tbody = document.getElementById('user-tbody');
             
             let thHTML = `<tr class="bg-slate-100"><th class="px-3 py-2 font-bold w-10 text-center">No</th>`;
-            cols.forEach(c => { let icon = ''; if(window.sortCol === c.id) { icon = window.sortAsc ? '<i class="fas fa-sort-up text-blue-500 ml-1"></i>' : '<i class="fas fa-sort-down text-blue-500 ml-1"></i>'; } else { icon = '<i class="fas fa-sort text-slate-300 ml-1"></i>'; } thHTML += `<th class="px-3 py-2 font-bold cursor-pointer hover:bg-slate-200 transition" onclick="window.sortUser('${c.id}')">${c.label} ${icon}</th>`; });
+            cols.forEach(c => { 
+                let icon = ''; 
+                if(window.sortCol === c.id) { 
+                    icon = window.sortAsc ? '<i class="fas fa-sort-up text-blue-500 ml-1"></i>' : '<i class="fas fa-sort-down text-blue-500 ml-1"></i>'; 
+                } else { 
+                    icon = '<i class="fas fa-sort text-slate-300 ml-1"></i>'; 
+                } 
+                thHTML += `<th class="px-3 py-2 font-bold cursor-pointer hover:bg-slate-200 transition" onclick="window.sortUser('${c.id}')">${c.label} ${icon}</th>`; 
+            });
             thHTML += `<th class="px-3 py-2 font-bold text-center sticky right-0 bg-slate-100 shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.1)]">Aksi</th></tr>`;
             thead.innerHTML = thHTML;
 
-            // --- KODE BARU: FILTER GABUNGAN (Pencarian + Kelas) ---
+            // --- FILTER GABUNGAN (Pencarian + Kelas) ---
             let searchQuery = document.getElementById('input-search-user').value.toLowerCase();
             let selectKelas = document.getElementById('filter-kelas');
             let filterKelasVal = (selectKelas && window.activeTab === 'siswa') ? selectKelas.value : '';
@@ -1882,15 +1943,23 @@ window.hapusMasterAplikasi = async (id) => {
 
             filtered.sort((a, b) => {
                 let valA = (a[window.sortCol] || '').toString().toLowerCase(); let valB = (b[window.sortCol] || '').toString().toLowerCase();
-                if(window.activeTab === 'siswa' && window.sortCol === 'kelas' && valA === valB) { let namaA = (a['nama'] || '').toLowerCase(); let namaB = (b['nama'] || '').toLowerCase(); return namaA < namaB ? -1 : (namaA > namaB ? 1 : 0); }
-                if (valA < valB) return window.sortAsc ? -1 : 1; if (valA > valB) return window.sortAsc ? 1 : -1; return 0;
+                if(window.activeTab === 'siswa' && window.sortCol === 'kelas' && valA === valB) { 
+                    let namaA = (a['nama'] || '').toLowerCase(); let namaB = (b['nama'] || '').toLowerCase(); 
+                    return namaA < namaB ? -1 : (namaA > namaB ? 1 : 0); 
+                }
+                if (valA < valB) return window.sortAsc ? -1 : 1; 
+                if (valA > valB) return window.sortAsc ? 1 : -1; 
+                return 0;
             });
 
             let limit = window.perPage === 'all' ? filtered.length : parseInt(window.perPage);
             let displayData = filtered.slice(0, limit);
             document.getElementById('user-info').innerText = `Menampilkan ${displayData.length} dari ${filtered.length} data`;
 
-            if(displayData.length === 0 && window.editingUserId !== 'NEW') { tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" class="text-center py-4 text-slate-400">Tidak ada data ditemukan.</td></tr>`; return; }
+            if(displayData.length === 0 && window.editingUserId !== 'NEW') { 
+                tbody.innerHTML = `<tr><td colspan="${cols.length + 2}" class="text-center py-4 text-slate-400">Tidak ada data ditemukan.</td></tr>`; 
+                return; 
+            }
 
             let trHTML = '';
             if(window.editingUserId === 'NEW') {
@@ -1903,9 +1972,15 @@ window.hapusMasterAplikasi = async (id) => {
                 let isEditing = window.editingUserId === u.id;
                 trHTML += `<tr class="hover:bg-slate-50 transition group ${isEditing ? 'bg-amber-50/50' : ''}"><td class="px-3 py-2 text-center text-slate-500 font-medium">${index + 1}</td>`;
                 
-                cols.forEach(c => { let val = u[c.id] || ''; if(isEditing) { trHTML += `<td class="px-2 py-1"><input type="text" id="edit-${u.id}-${c.id}" value="${val}" class="w-full p-1.5 border border-amber-300 rounded text-xs outline-none focus:border-amber-500 bg-white shadow-inner"></td>`; } else { trHTML += `<td class="px-3 py-2">${val}</td>`; } });
+                cols.forEach(c => { 
+                    let val = u[c.id] || ''; 
+                    if(isEditing) { 
+                        trHTML += `<td class="px-2 py-1"><input type="text" id="edit-${u.id}-${c.id}" value="${val}" class="w-full p-1.5 border border-amber-300 rounded text-xs outline-none focus:border-amber-500 bg-white shadow-inner"></td>`; 
+                    } else { 
+                        trHTML += `<td class="px-3 py-2">${val}</td>`; 
+                    } 
+                });
 
-                // TOMBOL AKSI LENGKAP (Termasuk Kunci SSO)
                 let identitasUtama = window.activeTab === 'siswa' ? (u.nisn || u.nis) : (u.nip || u.id);
 
                 trHTML += `<td class="px-3 py-2 text-center sticky right-0 ${isEditing ? 'bg-amber-50' : 'bg-white group-hover:bg-slate-50'} shadow-[-5px_0_10px_-5px_rgba(0,0,0,0.05)] whitespace-nowrap min-w-[100px]">`;
@@ -1922,236 +1997,160 @@ window.hapusMasterAplikasi = async (id) => {
             tbody.innerHTML = trHTML;
         };
 
-        window.sortUser = (colId) => { if(window.sortCol === colId) { window.sortAsc = !window.sortAsc; } else { window.sortCol = colId; window.sortAsc = true; } window.renderUserTable(); };
-        window.cariPengguna = () => { window.renderUserTable(); };
-        window.gantiPerPage = () => { window.perPage = document.getElementById('select-per-page').value; window.renderUserTable(); };
-
+        // ==========================================
+        // 5. FUNGSI EDIT / SIMPAN / HAPUS BIODATA
+        // ==========================================
         window.tambahBarisPengguna = () => { window.editingUserId = 'NEW'; window.renderUserTable(); };
         window.mulaiEdit = (id) => { window.editingUserId = id; window.renderUserTable(); };
         window.batalEdit = () => { window.editingUserId = null; window.renderUserTable(); };
 
         window.simpanPengguna = async (id) => {
-            let cols = window.activeTab === 'siswa' ? colDef.siswa : colDef.pegawai; let newData = {}; let prefix = id === 'NEW' ? 'new-' : `edit-${id}-`;
+            let cols = window.activeTab === 'siswa' ? colDef.siswa : colDef.pegawai; 
+            let newData = {}; 
+            let prefix = id === 'NEW' ? 'new-' : `edit-${id}-`;
             cols.forEach(c => { newData[c.id] = document.getElementById(prefix + c.id).value; });
             let colName = `pengguna_${window.activeTab}`;
-            try { if(id === 'NEW') { await addDoc(collection(db, colName), newData); } else { await updateDoc(doc(db, colName, id), newData); } window.editingUserId = null; } 
-            catch(e) { alert("Gagal menyimpan data: " + e.message); }
+            try { 
+                if(id === 'NEW') { await addDoc(collection(db, colName), newData); } 
+                else { await updateDoc(doc(db, colName, id), newData); } 
+                window.editingUserId = null; 
+            } catch(e) { Swal.fire("Gagal!", "Gagal menyimpan data: " + e.message, "error"); }
         };
-        window.hapusPengguna = async (id) => { if(confirm("Hapus data ini secara permanen?")) { try { await deleteDoc(doc(db, `pengguna_${window.activeTab}`, id)); } catch(e) { alert("Gagal menghapus: " + e.message); } } };
 
-
-// ==========================================
-// 1. FUNGSI PINDAH TAB & TOMBOL
-// ==========================================
-window.switchUserTab = (tab) => {
-    window.activeTab = tab; 
-    window.editingUserId = null; 
-    
-    const searchInput = document.getElementById('input-search-user');
-    if(searchInput) searchInput.value = '';
-    
-    ['siswa', 'guru', 'tendik'].forEach(t => { 
-        let el = document.getElementById('tab-' + t); 
-        if (el) {
-            if (t === tab) { 
-                el.className = "px-4 py-1.5 bg-white text-blue-600 text-xs font-bold rounded-md shadow-sm transition"; 
-            } else { 
-                el.className = "px-4 py-1.5 text-slate-500 hover:text-slate-700 text-xs font-bold rounded-md transition"; 
+        window.hapusPengguna = async (id) => { 
+            if(confirm("Hapus data ini secara permanen?")) { 
+                try { await deleteDoc(doc(db, `pengguna_${window.activeTab}`, id)); } 
+                catch(e) { Swal.fire("Gagal!", "Gagal menghapus: " + e.message, "error"); } 
             } 
-        }
-    });
+        };
 
-    const btnMass = document.getElementById('btn-mass-action');
-    const btnDeleteMass = document.getElementById('btn-delete-mass');
-    const btnSync = document.getElementById('btn-sync-accounts');
+        // ==========================================
+        // 6. SIHIR GENERATOR AKUN (MASSAL & INDIVIDU)
+        // ==========================================
+        window.bukaModalGenerator = () => {
+            const tipe = window.activeTab;
+            document.getElementById('gen-title-tipe').innerText = tipe.toUpperCase();
+            
+            if(document.getElementById('gen-search-user')) document.getElementById('gen-search-user').value = '';
+            
+            const labelId1 = tipe === 'siswa' ? 'NISN' : 'NIP';
+            const labelId2 = tipe === 'siswa' ? 'NIS' : 'NIK';
 
-    if(tab === 'siswa') {
-        if(btnMass) btnMass.classList.remove('hidden');
-        if(btnDeleteMass) btnDeleteMass.classList.remove('hidden');
-        if(btnSync) btnSync.classList.remove('hidden');
-    } else {
-        if(btnMass) btnMass.classList.add('hidden');
-        if(btnDeleteMass) btnDeleteMass.classList.add('hidden');
-        if(btnSync) btnSync.classList.remove('hidden'); 
-    }
+            document.getElementById('opt-user-id1').innerText = `Berdasarkan ${labelId1}`;
+            document.getElementById('opt-user-id2').innerText = `Berdasarkan ${labelId2}`;
+            document.getElementById('opt-pass-id1').innerText = labelId1;
+            document.getElementById('opt-pass-id2').innerText = labelId2;
 
-    window.sortCol = tab === 'siswa' ? 'kelas' : 'nama'; 
-    window.sortAsc = true;
-    
-    if (typeof fetchUserData === "function") fetchUserData();
-};
+            window.renderGenUserSelect('');
+            document.getElementById('gen-role').value = (tipe === 'guru' || tipe === 'tendik') ? tipe : 'siswa';
+            
+            const modal = document.getElementById('modal-generator');
+            const content = document.getElementById('modal-generator-content');
+            modal.classList.remove('hidden');
+            setTimeout(() => content.classList.replace('scale-95', 'scale-100'), 10);
+        };
 
+        window.renderGenUserSelect = (keyword) => {
+            const tipe = window.activeTab;
+            const targetSelect = document.getElementById('gen-target-user');
+            
+            let htmlOptions = `<option value="all">⚡ EKSEKUSI MASSAL (Semua Data ${tipe.toUpperCase()})</option>`;
+            const filterKata = (keyword || '').toLowerCase();
 
+            const dataSaring = window.userData.filter(u => {
+                const nama = (u.nama || '').toLowerCase();
+                let identitasUtama = tipe === 'siswa' ? (u.nisn || u.nis || '') : (u.nip || u.nik || '');
+                return nama.includes(filterKata) || identitasUtama.toLowerCase().includes(filterKata);
+            });
 
-// ==========================================
-// 2. FUNGSI AMBIL DATA FIREBASE
-// ==========================================
-window.fetchUserData = () => {
-    if(window.unsubUser) window.unsubUser();
-    let colName = `pengguna_${window.activeTab}`;
-    window.unsubUser = onSnapshot(collection(db, colName), (snapshot) => {
-        window.userData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (typeof window.renderUserTable === "function") window.renderUserTable();
-    });
-};
+            dataSaring.forEach(u => {
+                let identitas = tipe === 'siswa' ? (u.nisn || u.nis) : (u.nip || u.nik);
+                htmlOptions += `<option value="${u.id}">👤 Individu: ${u.nama} (${identitas || 'Tanpa ID'})</option>`;
+            });
 
-// ==========================================
-// SIHIR GENERATOR AKUN (MASSAL & INDIVIDU) + PENCARIAN
-// ==========================================
-window.bukaModalGenerator = () => {
-    const tipe = window.activeTab;
-    document.getElementById('gen-title-tipe').innerText = tipe;
-    
-    // Kosongkan kotak pencarian setiap kali modal dibuka (jika ada)
-    if(document.getElementById('gen-search-user')) {
-        document.getElementById('gen-search-user').value = '';
-    }
-    
-    // 1. DINAMIS LABEL (NISN vs NIP)
-    const labelId1 = tipe === 'siswa' ? 'NISN' : 'NIP';
-    const labelId2 = tipe === 'siswa' ? 'NIS' : 'NIK';
+            targetSelect.innerHTML = htmlOptions;
+        };
 
-    // Pastikan ID ini ada di HTML Bapak (<option id="opt-user-id1"> dll)
-    document.getElementById('opt-user-id1').innerText = `Berdasarkan ${labelId1}`;
-    document.getElementById('opt-user-id2').innerText = `Berdasarkan ${labelId2}`;
-    document.getElementById('opt-pass-id1').innerText = labelId1;
-    document.getElementById('opt-pass-id2').innerText = labelId2;
+        window.filterGenUser = () => {
+            const keyword = document.getElementById('gen-search-user').value;
+            window.renderGenUserSelect(keyword);
+        };
 
-    // 2. TAMPILKAN DAFTAR PERTAMA KALI (Tanpa Filter)
-    window.renderGenUserSelect('');
-    
-    // Default Role
-    document.getElementById('gen-role').value = (tipe === 'guru' || tipe === 'tendik') ? tipe : 'siswa';
-    
-    // Tampilkan Modal
-    const modal = document.getElementById('modal-generator');
-    const content = document.getElementById('modal-generator-content');
-    modal.classList.remove('hidden');
-    setTimeout(() => content.classList.replace('scale-95', 'scale-100'), 10);
-};
+        window.tutupModalGenerator = () => {
+            const modal = document.getElementById('modal-generator');
+            const content = document.getElementById('modal-generator-content');
+            content.classList.replace('scale-100', 'scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 200);
+        };
 
-// --- FUNGSI BARU 1: Render pilihan berdasarkan hasil ketikan ---
-window.renderGenUserSelect = (keyword) => {
-    const tipe = window.activeTab;
-    const targetSelect = document.getElementById('gen-target-user');
-    
-    // Pilihan paling atas selalu Eksekusi Massal
-    let htmlOptions = `<option value="all">⚡ EKSEKUSI MASSAL (Semua Data ${tipe.toUpperCase()})</option>`;
-    
-    const filterKata = keyword.toLowerCase();
+        // Event listener bawaan form generator
+        document.getElementById('gen-user-format').onchange = (e) => document.getElementById('gen-user-manual').classList.toggle('hidden', e.target.value !== 'manual');
+        document.getElementById('gen-pass-suffix').onchange = (e) => document.getElementById('gen-pass-manual').classList.toggle('hidden', e.target.value !== 'manual');
+        document.getElementById('gen-role').onchange = (e) => document.getElementById('gen-role-manual').classList.toggle('hidden', e.target.value !== 'manual');
 
-    // Saring data berdasarkan nama atau identitas yang mengandung kata kunci
-    const dataSaring = window.userData.filter(u => {
-        const nama = (u.nama || '').toLowerCase();
-        let identitasUtama = tipe === 'siswa' ? (u.nisn || u.nis || '') : (u.nip || u.nik || '');
-        identitasUtama = identitasUtama.toLowerCase();
-        
-        return nama.includes(filterKata) || identitasUtama.includes(filterKata);
-    });
+        window.eksekusiGenerator = async () => {
+            const targetId = document.getElementById('gen-target-user').value;
+            let dataProses = targetId === 'all' ? window.userData : window.userData.filter(u => u.id === targetId);
 
-    // Masukkan daftar nama hasil saringan ke dalam pilihan dropdown
-    dataSaring.forEach(u => {
-        let identitas = tipe === 'siswa' ? (u.nisn || u.nis) : (u.nip || u.nik);
-        htmlOptions += `<option value="${u.id}">👤 Individu: ${u.nama} (${identitas || 'Tanpa ID'})</option>`;
-    });
+            if(dataProses.length === 0) return Swal.fire('Kosong', 'Tidak ada data untuk diproses.', 'warning');
 
-    // Tampilkan ke layar
-    targetSelect.innerHTML = htmlOptions;
-};
+            const formatUser = document.getElementById('gen-user-format').value;
+            const prefixPass = document.getElementById('gen-pass-prefix').value;
+            const suffixPass = document.getElementById('gen-pass-suffix').value;
+            const rolePilihan = document.getElementById('gen-role').value;
 
-// --- FUNGSI BARU 2: Dipanggil saat Bapak mengetik di kotak pencarian ---
-window.filterGenUser = () => {
-    const keyword = document.getElementById('gen-search-user').value;
-    window.renderGenUserSelect(keyword);
-};
-
-window.tutupModalGenerator = () => {
-    const modal = document.getElementById('modal-generator');
-    const content = document.getElementById('modal-generator-content');
-    content.classList.replace('scale-100', 'scale-95');
-    setTimeout(() => modal.classList.add('hidden'), 200);
-};
-
-// NOTE: Jangan lupa pastikan fungsi window.eksekusiGenerator Bapak 
-// tidak ikut terhapus saat mengganti kode di atas.
-
-
-
-
-// Munculkan Kotak Manual jika dipilih
-document.getElementById('gen-user-format').onchange = (e) => document.getElementById('gen-user-manual').classList.toggle('hidden', e.target.value !== 'manual');
-document.getElementById('gen-pass-suffix').onchange = (e) => document.getElementById('gen-pass-manual').classList.toggle('hidden', e.target.value !== 'manual');
-document.getElementById('gen-role').onchange = (e) => document.getElementById('gen-role-manual').classList.toggle('hidden', e.target.value !== 'manual');
-
-window.eksekusiGenerator = async () => {
-    // Tentukan siapa targetnya (Massal vs 1 Orang)
-    const targetId = document.getElementById('gen-target-user').value;
-    let dataProses = targetId === 'all' ? window.userData : window.userData.filter(u => u.id === targetId);
-
-    if(dataProses.length === 0) return Swal.fire('Kosong', 'Tidak ada data untuk diproses.', 'warning');
-
-    const formatUser = document.getElementById('gen-user-format').value;
-    const prefixPass = document.getElementById('gen-pass-prefix').value;
-    const suffixPass = document.getElementById('gen-pass-suffix').value;
-    const rolePilihan = document.getElementById('gen-role').value;
-
-    // Peringatan jika memilih Ketik Manual tapi targetnya Massal
-    if(targetId === 'all' && formatUser === 'manual') {
-        return Swal.fire('Bahaya!', 'Anda memilih target MASSAL tapi Username KETIK MANUAL. Ini akan membuat semua orang punya Username yang sama. Silakan pilih target Individu.', 'error');
-    }
-
-    Swal.fire({
-        title: 'Memproses Akun...',
-        html: `Sedang meracik <b>${dataProses.length}</b> akun. Mohon tunggu.`,
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
-    });
-
-    let sukses = 0;
-    for (let u of dataProses) {
-        try {
-            // 1. Tentukan Username
-            let finalUser = "";
-            if(formatUser === 'manual') finalUser = document.getElementById('gen-user-manual').value;
-            else if(formatUser === 'id_1') finalUser = u.nisn || u.nip;
-            else if(formatUser === 'id_2') finalUser = u.nis || u.nik;
-            else if(formatUser === 'nama') finalUser = u.nama ? u.nama.replace(/\s+/g, '').toLowerCase() : '';
-
-            if(!finalUser) finalUser = u.id; // Jaga-jaga jika kosong
-
-            // 2. Tentukan Password
-            let finalPass = "";
-            if(suffixPass === 'manual') {
-                finalPass = document.getElementById('gen-pass-manual').value;
-            } else {
-                let suffixVal = "";
-                if(suffixPass === 'id_1') suffixVal = u.nisn || u.nip;
-                else if(suffixPass === 'id_2') suffixVal = u.nis || u.nik;
-                else if(suffixPass === 'nama') suffixVal = u.nama ? u.nama.replace(/\s+/g, '').toLowerCase() : '';
-                else if(suffixPass === 'tgl_lahir') {
-                    if(u.tanggal_lahir) suffixVal = u.tanggal_lahir.split('-').reverse().join(''); // Ubah YYYY-MM-DD ke DDMMYYYY
-                }
-                finalPass = prefixPass + suffixVal;
+            if(targetId === 'all' && formatUser === 'manual') {
+                return Swal.fire('Bahaya!', 'Anda memilih target MASSAL tapi Username KETIK MANUAL. Ini akan membuat semua orang punya Username yang sama.', 'error');
             }
 
-            // 3. Tentukan Role Dasar
-            let finalRole = (rolePilihan === 'manual') ? document.getElementById('gen-role-manual').value : rolePilihan;
+            Swal.fire({
+                title: 'Memproses Akun...',
+                html: `Sedang meracik <b>${dataProses.length}</b> akun. Mohon tunggu.`,
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
 
-            // 4. Kirim ke Firebase (Simpan Akun Portal)
-            const accRef = doc(db, "akun_portal", u.id);
-            await setDoc(accRef, {
-                username: finalUser.toString().trim(),
-                password: finalPass.toString().trim(),
-                tipe: finalRole.toLowerCase()
-            }, { merge: true });
+            let sukses = 0;
+            for (let u of dataProses) {
+                try {
+                    let finalUser = "";
+                    if(formatUser === 'manual') finalUser = document.getElementById('gen-user-manual').value;
+                    else if(formatUser === 'id_1') finalUser = u.nisn || u.nip;
+                    else if(formatUser === 'id_2') finalUser = u.nis || u.nik;
+                    else if(formatUser === 'nama') finalUser = u.nama ? u.nama.replace(/\s+/g, '').toLowerCase() : '';
 
-            sukses++;
-        } catch (e) { console.error("Gagal sinkron:", u.nama); }
-    }
+                    if(!finalUser) finalUser = u.id; 
 
-    Swal.fire('Selesai!', `${sukses} Akun berhasil diatur dengan format baru.`, 'success');
-    window.tutupModalGenerator();
-};
+                    let finalPass = "";
+                    if(suffixPass === 'manual') {
+                        finalPass = document.getElementById('gen-pass-manual').value;
+                    } else {
+                        let suffixVal = "";
+                        if(suffixPass === 'id_1') suffixVal = u.nisn || u.nip;
+                        else if(suffixPass === 'id_2') suffixVal = u.nis || u.nik;
+                        else if(suffixPass === 'nama') suffixVal = u.nama ? u.nama.replace(/\s+/g, '').toLowerCase() : '';
+                        else if(suffixPass === 'tgl_lahir') {
+                            if(u.tanggal_lahir) suffixVal = u.tanggal_lahir.split('-').reverse().join(''); 
+                        }
+                        finalPass = prefixPass + suffixVal;
+                    }
+
+                    let finalRole = (rolePilihan === 'manual') ? document.getElementById('gen-role-manual').value : rolePilihan;
+
+                    const accRef = doc(db, "akun_portal", u.id);
+                    await setDoc(accRef, {
+                        username: finalUser.toString().trim(),
+                        password: finalPass.toString().trim(),
+                        tipe: finalRole.toLowerCase()
+                    }, { merge: true });
+
+                    sukses++;
+                } catch (e) { console.error("Gagal sinkron:", u.nama); }
+            }
+
+            Swal.fire('Selesai!', `${sukses} Akun berhasil diatur dengan format baru.`, 'success');
+            window.tutupModalGenerator();
+        };
 
         // ==========================================
         // 6. SISTEM SSO: PENGATURAN INDIVIDU & MASSAL
